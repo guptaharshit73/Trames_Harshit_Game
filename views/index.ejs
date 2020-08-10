@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Game</title>
+    <meta name="description" content="Multiplayer Node.js Game">
+    <link href="https://fonts.googleapis.com/css?family=Graduate" rel="stylesheet">
+    <link rel='stylesheet' href='/stylesheets/style.css' />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/css/bootstrap.min.css" integrity="sha384-rwoIResjU2yc3z8GV/NPeZWAv56rSmLldC3R/AZzGRnGxQQKnKkoFVhFQhNUwEyJ" crossorigin="anonymous">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.1.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tether/1.4.0/js/tether.min.js" integrity="sha384-DztdAPBWPRXSA/3eYEEUWrWCy7G5KFbe8fFjk5JAIxUYHKkDx6Qin1DkWx51bBrb" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-alpha.6/js/bootstrap.min.js" integrity="sha384-vBWWzlZJ8ea9aCX4pEW3rVHjgjt7zpkNpZk+02D9phzyeVkE+jo0ieGizqPLForn" crossorigin="anonymous"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript">
+
+      var socket = io();
+      var currentPlayer = null;
+      var token = null;
+      var currentBoard = null;
+
+      $(document).ready(function () {
+        socket.emit('start', "<%= username %>", "<%= token %>");
+        token = "<%= token %>";
+        registerEvents();
+      });
+
+      function registerEvents() {
+        socket.on('init', function(player, boardConfig, board, players){
+          if(currentBoard === null){
+            currentBoard = board;
+          }
+
+          if(currentPlayer === null){
+            currentPlayer = player;
+
+            var button = document.getElementById("clickme");
+              count = 0;
+              button.onclick = function() {
+              count += 1;
+              button.innerHTML = "Click me: " + count;
+              socket.emit('cell_click', count, currentPlayer, token);
+            };
+
+            updateLeadBoard(players);
+          }
+        });
+
+        socket.on('after_cell_click', function(player, players, board, diffs){
+          currentBoard = board;
+          if(currentPlayer !== null){
+            updateLeadBoard(players);
+          }
+        });
+
+        socket.on('close', function(player){
+          if(currentPlayer !== null && currentPlayer.id === player.id){
+            alert("You are disconnected from server");
+            window.location.replace("/");
+          }
+        });
+      }
+
+      function updateLeadBoard(players){
+        $('#leadboard').empty();
+
+        for (var key in players) {
+          var player = players[key];
+          if(player !== null){
+            $('#leadboard').append('<tr><td id="player_'+player.id+'" width="5%" style="background-color: '+player.color+'"></td><td>'+player.name+'</td><td align="right" class="btn">'+player.btn+'</td></tr>');
+          }
+        }
+        sortTable();
+      }
+
+      function sortTable(){
+        var tbl = document.getElementById("leadboard");
+        var store = [];
+        for(var i=0, len=tbl.rows.length; i<len; i++){
+          var row = tbl.rows[i];
+          var sortnr = parseFloat(row.cells[2].textContent || row.cells[2].innerText);
+          if(!isNaN(sortnr)) store.push([sortnr, row]);
+        }
+        store.sort(function(x,y){
+          return y[0] - x[0];
+        });
+        for(var i=0, len=store.length; i<len; i++){
+          var currentRow = store[i][1];
+          currentRow.cells[0].innerText = i+1;
+          tbl.appendChild(currentRow);
+        }
+        store = null;
+      }
+
+    </script>
+
+  </head>
+  <body>
+  <div class="container-full" align="center">
+      <div class="header">
+        <table class="table table-inverse header-table">
+		  <tr><button class="btn" id="clickme" style="margin-top:5%">Click me: 0</button></tr>
+        </table>
+      </div>
+      <div class="game-wrapper"></div>
+      <hr/>
+      <div class="leadboard" align="center">
+        <h2>Leadboard</h2>
+        <table class="table table-inverse" id="leadboard">
+        </table>
+      </div>
+    </div>
+  </body>
+</html>
